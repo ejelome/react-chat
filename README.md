@@ -16,6 +16,9 @@ Learn [React](https://reactjs.org) and [Firebase](https://firebase.google.com) w
   - [Usage](#usage)
   - [Lessons](#lessons)
     - [1. Setup Firebase](#1-setup-firebase)
+    - [2. Setup Authentication](#2-setup-authentication)
+      - [2.1. Facebook](#21-facebook)
+  - [References](#references)
   - [License](#license)
 
 <!-- markdown-toc end -->
@@ -115,6 +118,255 @@ See <https://ejelome-react-chat.netlify.app>.
   ```
 
 </details>
+
+### 2. Setup Authentication
+
+<details>
+  <summary>2.1. Setup remote</summary>
+
+- 2.1.1. On `Project Overview`, click `Authentication`
+- 2.1.2. Click `Get started`
+- 2.1.3. Click `Sign-in method`
+- 2.1.4. Under `Sign-in providers`, click a provider (e.g. `Facebook`)
+
+  - 2.1.4.1. Click `Enable`
+  - 2.1.4.2. Provide required details
+  - 2.1.4.3. Click `Save`
+
+#### 2.1. Facebook
+
+- 2.1.1. Log in on [Facebook for Developers](https://developers.facebook.com)
+- 2.1.2. Click `My Apps`
+- 2.1.3. Click `Create App`
+
+  - 2.1.3.1. Click `Build Connected Experiences`
+  - 2.1.3.2. Write `App Display Name` (e.g. `react-chat`)
+  - 2.1.3.3. Click `Create App`
+  - 2.1.3.4. Pass `Security Check` then click `Submit`
+
+- 2.1.4. Click `Setup` under `Facebook Login`
+- 2.1.5. Click `www` (Web) icon
+
+  - 2.1.5.1. Write `Site URL` (e.g. http://localhost:3000)
+  - 2.1.5.2. Click `Save`
+
+- 2.1.6. Click `Settings` then `Basic`
+
+  - 2.1.6.1. Copy and paste `App ID` on `App ID` in `Facebook`'s `Sign-in providers`
+  - 2.1.6.2. Click `Show` on `App Secret`
+  - 2.1.6.3. Copy and paste `App ID` on `App secret` in `Facebook`'s `Sign-in providers`
+
+- 2.1.7. Under `PRODUCTS`, click `Facebook Login` then `Settings`
+
+  - 2.1.7.1. Copy `OAuth redirect URI` from `Facebook`'s `Sign-in providers`
+  - 2.1.7.2. Paste it on `Valid OAuth Redirect URIs`
+  - 2.1.7.3. Click `Save Changes`
+
+</details>
+
+<details>
+  <summary>2.1. Setup local</summary>
+
+- 2.1.1. Export `auth` and provider (e.g. `Facebook*`)
+
+  ```diff
+  --- src/firebase.js
+  +++ src/firebase.js
+  @@ -1,11 +1,21 @@
+  +import "firebase/auth";
+  +
+   import firebase from "firebase/app";
+
+   firebase.initializeApp({
+     apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+     authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+     databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL,
+     projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+     storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+     messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+     appId: process.env.REACT_APP_FIREBASE_APP_ID,
+   });
+  +
+  +const auth = firebase.auth();
+  +
+  +const provider = {
+  +  facebook: new firebase.auth.FacebookAuthProvider(),
+  +};
+  +
+  +export { auth, provider };
+  ```
+
+- 2.1.2. Use `auth` with provider
+
+  ```diff
+  --- src/App.js
+  +++ src/App.js
+  @@ -1,25 +1,32 @@
+  -import logo from './logo.svg';
+  -import './App.css';
+  +import { useState } from "react";
+
+  -function App() {
+  -  return (
+  -    <div className="App">
+  -      <header className="App-header">
+  -        <img src={logo} className="App-logo" alt="logo" />
+  -        <p>
+  -          Edit <code>src/App.js</code> and save to reload.
+  -        </p>
+  -        <a
+  -          className="App-link"
+  -          href="https://reactjs.org"
+  -          target="_blank"
+  -          rel="noopener noreferrer"
+  -        >
+  -          Learn React
+  -        </a>
+  -      </header>
+  -    </div>
+  +import { auth, provider } from "./firebase";
+  +
+  +const App = () => {
+  +  const initialState = {};
+  +  const [account, setAccount] = useState(initialState);
+  +  const { user, error } = account;
+  +
+  +  const handleFacebookSignIn = () => {
+  +    const { facebook } = provider;
+  +
+  +    auth
+  +      .signInWithPopup(facebook)
+  +      .then(({ user }) =>
+  +        setAccount((prevAccount) => ({ ...prevAccount, user }))
+  +      )
+  +      .catch((error) =>
+  +        setAccount((prevAccount) => ({ ...prevAccount, error }))
+  +      );
+  +  };
+  +
+  +  return user && !error ? (
+  +    <>
+  +      <h1>Hello {user.displayName}!</h1>
+  +    </>
+  +  ) : (
+  +    <button onClick={handleFacebookSignIn}>Sign in with Facebook</button>
+     );
+  -}
+  +};
+
+   export default App;
+  ```
+
+- 2.1.3 Resolve authentication on render
+
+  ```diff
+  --- src/App.js
+  +++ src/App.js
+  @@ -1,30 +1,38 @@
+  -import { useState } from "react";
+  +import { useEffect, useState } from "react";
+
+   import { auth, provider } from "./firebase";
+
+   const App = () => {
+     const initialState = {};
+     const [account, setAccount] = useState(initialState);
+     const { user, error } = account;
+
+  +  useEffect(() => {
+  +    const unsubscribe = auth.onAuthStateChanged((user) => {
+  +      setAccount((prevAccount) => ({ ...prevAccount, user }));
+  +    });
+  +
+  +    return unsubscribe;
+  +  }, []);
+  +
+     const handleFacebookSignIn = () => {
+       const { facebook } = provider;
+
+       auth
+         .signInWithPopup(facebook)
+         .then(({ user }) =>
+           setAccount((prevAccount) => ({ ...prevAccount, user }))
+         )
+         .catch((error) =>
+           setAccount((prevAccount) => ({ ...prevAccount, error }))
+         );
+     };
+
+     return user && !error ? (
+       <h1>Hello {user.displayName}!</h1>
+     ) : (
+       <button onClick={handleFacebookSignIn}>Sign in with Facebook</button>
+     );
+   };
+
+   export default App;
+  ```
+
+- 2.1.4. Include signing out
+
+  ```diff
+  --- src/App.js
+  +++ src/App.js
+  @@ -1,38 +1,45 @@
+   import { useEffect, useState } from "react";
+
+   import { auth, provider } from "./firebase";
+
+   const App = () => {
+     const initialState = {};
+     const [account, setAccount] = useState(initialState);
+     const { user, error } = account;
+
+     useEffect(() => {
+       const unsubscribe = auth.onAuthStateChanged((user) => {
+         setAccount((prevAccount) => ({ ...prevAccount, user }));
+       });
+
+       return unsubscribe;
+     }, []);
+
+     const handleFacebookSignIn = () => {
+       const { facebook } = provider;
+
+       auth
+         .signInWithPopup(facebook)
+         .then(({ user }) =>
+           setAccount((prevAccount) => ({ ...prevAccount, user }))
+         )
+         .catch((error) =>
+           setAccount((prevAccount) => ({ ...prevAccount, error }))
+         );
+     };
+
+  +  const handleSignOut = () => {
+  +    auth.signOut();
+  +  };
+  +
+     return user && !error ? (
+  -    <h1>Hello {user.displayName}!</h1>
+  +    <>
+  +      <h1>Hello {user.displayName}!</h1>
+  +      <button onClick={handleSignOut}>Sign Out</button>
+  +    </>
+     ) : (
+       <button onClick={handleFacebookSignIn}>Sign in with Facebook</button>
+     );
+   };
+
+   export default App;
+  ```
+
+</details>
+
+---
+
+## References
+
+- [Handle the sign-in flow with the Firebase SDK](https://firebase.google.com/docs/auth/web/facebook-login#handle_the_sign-in_flow_with_the_firebase_sdk)
+
+---
 
 ## License
 
