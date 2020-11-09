@@ -23,13 +23,11 @@ const App = () => {
       .then(({ user }) =>
         setAccount((prevAccount) => ({ ...prevAccount, user }))
       )
-      .catch((error) =>
-        setAccount((prevAccount) => ({ ...prevAccount, error }))
-      );
+      .catch((error) => console.error(error));
   };
 
   const handleSignOut = () => {
-    auth.signOut();
+    auth.signOut().catch((error) => console.error(error));
   };
 
   return user && !error ? (
