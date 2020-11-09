@@ -39,6 +39,21 @@
   },
   "devDependencies": {
     "eslint-plugin-simple-import-sort": "^5.0.3",
+    "husky": "^4.3.0",
+    "lint-staged": "^10.5.1",
     "prettier": "^2.1.2"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "src/**/*.js": [
+      "npm run lint -- --fix"
+    ],
+    "src/**/*.{md,css,js,json}": [
+      "npm run format -- -w"
+    ]
   }
 }
