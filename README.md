@@ -18,6 +18,8 @@ Learn [React](https://reactjs.org) and [Firebase](https://firebase.google.com) w
     - [1. Setup Firebase](#1-setup-firebase)
     - [2. Setup Authentication](#2-setup-authentication)
       - [2.1. Facebook](#21-facebook)
+    - [3. Setup Netlify](#3-setup-netlify)
+      - [3.1. Facebook](#31-facebook)
   - [References](#references)
   - [License](#license)
 
@@ -349,6 +351,37 @@ See <https://ejelome-react-chat.netlify.app>.
 
    export default App;
   ```
+
+</details>
+
+### 3. Setup Netlify
+
+<details>
+  <summary>3.1. Setup Domain</summary>
+
+- 3.1.1. Go back to `Project Overview`
+- 3.1.2. Click `Authentication`
+- 3.1.3. Click `Sign-in method`
+- 3.1.4. Under `Sign-in providers`, select provider (e.g. `Facebook`)
+- 3.1.5. Click `Add domain`
+- 3.1.6. Enter domain (e.g. `<username>-react-chat.netlify.app`)
+- 3.1.7. Click `Add`
+
+</details>
+
+#### 3.1. Facebook
+
+<details>
+  <summary>3.1.1. Setup Tester</summary>
+
+- 3.1.1.1. Go back to app's `Dashboard`
+- 3.1.1.2. Click `Roles` then `Roles`
+- 3.1.1.3. Under `Testers`, click `Add Tester`
+- 3.1.1.4. Enter user
+- 3.1.1.5. Click `Submit`
+
+> **NOTE** <br />
+> The user(s) will receive a verification on Facebook that must be confirmed.
 
 </details>
 
