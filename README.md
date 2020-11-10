@@ -201,7 +201,7 @@ See <https://ejelome-react-chat.netlify.app>.
   ```diff
   --- src/App.js
   +++ src/App.js
-  @@ -1,25 +1,32 @@
+  @@ -1,25 +1,28 @@
   -import logo from './logo.svg';
   -import './App.css';
   +import { useState } from "react";
@@ -229,7 +229,7 @@ See <https://ejelome-react-chat.netlify.app>.
   +const App = () => {
   +  const initialState = {};
   +  const [account, setAccount] = useState(initialState);
-  +  const { user, error } = account;
+  +  const { user } = account;
   +
   +  const handleFacebookSignIn = () => {
   +    const { facebook } = provider;
@@ -239,15 +239,11 @@ See <https://ejelome-react-chat.netlify.app>.
   +      .then(({ user }) =>
   +        setAccount((prevAccount) => ({ ...prevAccount, user }))
   +      )
-  +      .catch((error) =>
-  +        setAccount((prevAccount) => ({ ...prevAccount, error }))
-  +      );
+  +      .catch((error) => console.error(error));
   +  };
   +
-  +  return user && !error ? (
-  +    <>
-  +      <h1>Hello {user.displayName}!</h1>
-  +    </>
+  +  return user ? (
+  +    <h1>Hello {user.displayName}!</h1>
   +  ) : (
   +    <button onClick={handleFacebookSignIn}>Sign in with Facebook</button>
      );
@@ -262,7 +258,7 @@ See <https://ejelome-react-chat.netlify.app>.
   ```diff
   --- src/App.js
   +++ src/App.js
-  @@ -1,30 +1,38 @@
+  @@ -1,28 +1,36 @@
   -import { useState } from "react";
   +import { useEffect, useState } from "react";
 
@@ -271,7 +267,7 @@ See <https://ejelome-react-chat.netlify.app>.
    const App = () => {
      const initialState = {};
      const [account, setAccount] = useState(initialState);
-     const { user, error } = account;
+     const { user } = account;
 
   +  useEffect(() => {
   +    const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -289,12 +285,10 @@ See <https://ejelome-react-chat.netlify.app>.
          .then(({ user }) =>
            setAccount((prevAccount) => ({ ...prevAccount, user }))
          )
-         .catch((error) =>
-           setAccount((prevAccount) => ({ ...prevAccount, error }))
-         );
+         .catch((error) => console.error(error));
      };
 
-     return user && !error ? (
+     return user ? (
        <h1>Hello {user.displayName}!</h1>
      ) : (
        <button onClick={handleFacebookSignIn}>Sign in with Facebook</button>
@@ -309,7 +303,7 @@ See <https://ejelome-react-chat.netlify.app>.
   ```diff
   --- src/App.js
   +++ src/App.js
-  @@ -1,38 +1,45 @@
+  @@ -1,36 +1,43 @@
    import { useEffect, useState } from "react";
 
    import { auth, provider } from "./firebase";
@@ -317,7 +311,7 @@ See <https://ejelome-react-chat.netlify.app>.
    const App = () => {
      const initialState = {};
      const [account, setAccount] = useState(initialState);
-     const { user, error } = account;
+     const { user } = account;
 
      useEffect(() => {
        const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -335,16 +329,14 @@ See <https://ejelome-react-chat.netlify.app>.
          .then(({ user }) =>
            setAccount((prevAccount) => ({ ...prevAccount, user }))
          )
-         .catch((error) =>
-           setAccount((prevAccount) => ({ ...prevAccount, error }))
-         );
+         .catch((error) => console.error(error));
      };
 
   +  const handleSignOut = () => {
-  +    auth.signOut();
+  +    auth.signOut().catch((error) => console.error(error));
   +  };
   +
-     return user && !error ? (
+     return user ? (
   -    <h1>Hello {user.displayName}!</h1>
   +    <>
   +      <h1>Hello {user.displayName}!</h1>

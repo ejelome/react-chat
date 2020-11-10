@@ -5,7 +5,7 @@ import { auth, provider } from "./firebase";
 const App = () => {
   const initialState = {};
   const [account, setAccount] = useState(initialState);
-  const { user, error } = account;
+  const { user } = account;
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -30,7 +30,7 @@ const App = () => {
     auth.signOut().catch((error) => console.error(error));
   };
 
-  return user && !error ? (
+  return user ? (
     <>
       <h1>Hello {user.displayName}!</h1>
       <button onClick={handleSignOut}>Sign Out</button>
