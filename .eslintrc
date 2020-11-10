@@ -1,5 +1,5 @@
 {
-  "extends": ["react-app"],
+  "extends": ["react-app", "prettier"],
   "parser": "babel-eslint",
   "plugins": ["simple-import-sort"],
   "rules": {
