@@ -390,6 +390,7 @@ See <https://ejelome-react-chat.netlify.app>.
 ## References
 
 - [Handle the sign-in flow with the Firebase SDK](https://firebase.google.com/docs/auth/web/facebook-login#handle_the_sign-in_flow_with_the_firebase_sdk)
+- [Get to know Cloud Firestore](https://youtube.com/playlist?list=PLl-K7zZEsYLluG5MCVEzXAQ7ACZBCuZgZ)
 
 ---
 
