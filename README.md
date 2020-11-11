@@ -357,7 +357,7 @@ See <https://ejelome-react-chat.netlify.app>.
 ### 3. Setup Netlify
 
 <details>
-  <summary>3.1. Setup Domain</summary>
+  <summary>3.1. Setup domain</summary>
 
 - 3.1.1. Go back to `Project Overview`
 - 3.1.2. Click `Authentication`
@@ -372,7 +372,7 @@ See <https://ejelome-react-chat.netlify.app>.
 #### 3.1. Facebook
 
 <details>
-  <summary>3.1.1. Setup Tester</summary>
+  <summary>3.1.1. Setup tester</summary>
 
 - 3.1.1.1. Go back to app's `Dashboard`
 - 3.1.1.2. Click `Roles` then `Roles`
