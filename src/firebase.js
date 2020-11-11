@@ -1,4 +1,5 @@
 import "firebase/auth";
+import "firebase/firestore";
 
 import firebase from "firebase/app";
 
@@ -18,4 +19,6 @@ const provider = {
   facebook: new firebase.auth.FacebookAuthProvider(),
 };
 
-export { auth, provider };
+const db = firebase.firestore();
+
+export { auth, db, provider };
