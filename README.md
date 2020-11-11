@@ -20,6 +20,7 @@ Learn [React](https://reactjs.org) and [Firebase](https://firebase.google.com) w
       - [2.1. Facebook](#21-facebook)
     - [3. Setup Netlify](#3-setup-netlify)
       - [3.1. Facebook](#31-facebook)
+    - [4. Setup Cloud Firestore](#4-setup-cloud-firestore)
   - [References](#references)
   - [License](#license)
 
@@ -385,12 +386,173 @@ See <https://ejelome-react-chat.netlify.app>.
 
 </details>
 
+### 4. Setup Cloud Firestore
+
+<details>
+  <summary>4.1. Setup database</summary>
+
+- 4.1.1. Go back to `Project Overview`
+- 4.1.2. Click `Cloud Firestore`
+- 4.1.3. Click `Create database`
+- 4.1.4. Select `Start in production mode` then click `Next`
+- 4.1.5. Select a `Cloud Firestore location` (e.g. `asia-southeast2`) the click `Enable`
+
+> **NOTES**
+>
+> - `Cloud Firestore` (new) is the successor of `Realtime Database` (old)
+> - The `Cloud Firestore location` must be where the app be mostly used
+
+</details>
+
+<details>
+  <summary>4.2. Setup rules</summary>
+
+- 4.2.1. Click `Data`
+- 4.2.2. Write `Edit rules`
+
+  ```diff
+  --- Edit rules
+  +++ Edit Rules
+  @@ -1,8 +1,9 @@
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+  -    match /{document=**} {
+  -      allow read, write: if false;
+  +    match /users/{uid} {
+  +      allow read, update, delete: if request.auth != null && request.auth.uid == uid;
+  +      allow create: if request.auth != null;
+       }
+     }
+   }
+  ```
+
+- 4.2.3. Click `Publish`
+
+> **NOTES**
+>
+> - `request.auth != null` only allows action if authenticated
+> - `request.auth.uid == uid` only allows action if authenticated `uid` is the `Document ID`
+
+</details>
+
+<details>
+  <summary>4.3. Setup local</summary>
+
+- 4.3.1. Export `firestore`
+
+  ```diff
+  --- src/firebase.js
+  +++ src/firebase.js
+  @@ -1,21 +1,24 @@
+   import "firebase/auth";
+  +import "firebase/firestore";
+
+   import firebase from "firebase/app";
+
+   firebase.initializeApp({
+     apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+     authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+     databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL,
+     projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+     storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+     messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+     appId: process.env.REACT_APP_FIREBASE_APP_ID,
+   });
+
+   const auth = firebase.auth();
+
+   const provider = {
+     facebook: new firebase.auth.FacebookAuthProvider(),
+   };
+
+  -export { auth, provider };
+  +const db = firebase.firestore();
+  +
+  +export { auth, db, provider };
+  ```
+
+- 4.3.2. Use `firestore`
+
+  ```diff
+  --- src/App.js
+  +++ src/App.js
+  @@ -1,43 +1,51 @@
+   import { useEffect, useState } from "react";
+
+  -import { auth, provider } from "./firebase";
+  +import { auth, db, provider } from "./firebase";
+
+   const App = () => {
+     const initialState = {};
+     const [account, setAccount] = useState(initialState);
+     const { user } = account;
+
+     useEffect(() => {
+       const unsubscribe = auth.onAuthStateChanged((user) => {
+         setAccount((prevAccount) => ({ ...prevAccount, user }));
+       });
+
+       return unsubscribe;
+     }, []);
+
+     const handleFacebookSignIn = () => {
+       const { facebook } = provider;
+
+       auth
+         .signInWithPopup(facebook)
+  -      .then(({ user }) =>
+  -        setAccount((prevAccount) => ({ ...prevAccount, user }))
+  -      )
+  +      .then(({ user: { email, uid } }) => {
+  +        db.collection("users")
+  +          .doc(uid)
+  +          .get()
+  +          .then(
+  +            ({ exists }) =>
+  +              !exists && db.collection("users").doc(uid).set({ email })
+  +          )
+  +          .catch((error) => console.log(error));
+  +
+  +        setAccount((prevAccount) => ({ ...prevAccount, user }));
+  +      })
+         .catch((error) => console.error(error));
+     };
+
+     const handleSignOut = () => {
+       auth.signOut().catch((error) => console.error(error));
+     };
+  -
+     return user ? (
+       <>
+         <h1>Hello {user.displayName}!</h1>
+         <button onClick={handleSignOut}>Sign Out</button>
+       </>
+     ) : (
+       <button onClick={handleFacebookSignIn}>Sign in with Facebook</button>
+     );
+   };
+
+   export default App;
+  ```
+
+> **NOTES**
+>
+> - `.collection` will create the collection if it doesn't exist
+> - `exists` can be used to check if a `doc` already exists
+> - `.set` will overwrite the whole document (or use `merge` to patch)
+> - Since `writes` is twice as expensive as `reads`, avoid unnecessary overwrites (`.set`)
+
+</details>
+
 ---
 
 ## References
 
 - [Handle the sign-in flow with the Firebase SDK](https://firebase.google.com/docs/auth/web/facebook-login#handle_the_sign-in_flow_with_the_firebase_sdk)
 - [Get to know Cloud Firestore](https://youtube.com/playlist?list=PLl-K7zZEsYLluG5MCVEzXAQ7ACZBCuZgZ)
+- [Get started with Cloud Firestore](https://firebase.google.com/docs/firestore/quickstart)
+- [Writing conditions for Cloud Firestore Security Rules](https://firebase.google.com/docs/firestore/security/rules-conditions)
 
 ---
 
