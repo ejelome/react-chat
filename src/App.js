@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { auth, provider } from "./firebase";
+import { auth, db, provider } from "./firebase";
 
 const App = () => {
   const initialState = {};
@@ -20,16 +20,24 @@ const App = () => {
 
     auth
       .signInWithPopup(facebook)
-      .then(({ user }) =>
-        setAccount((prevAccount) => ({ ...prevAccount, user }))
-      )
+      .then(({ user: { email, uid } }) => {
+        db.collection("users")
+          .doc(uid)
+          .get()
+          .then(
+            ({ exists }) =>
+              !exists && db.collection("users").doc(uid).set({ email })
+          )
+          .catch((error) => console.log(error));
+
+        setAccount((prevAccount) => ({ ...prevAccount, user }));
+      })
       .catch((error) => console.error(error));
   };
 
   const handleSignOut = () => {
     auth.signOut().catch((error) => console.error(error));
   };
-
   return user ? (
     <>
       <h1>Hello {user.displayName}!</h1>
