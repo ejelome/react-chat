@@ -21,4 +21,4 @@ const provider = {
 
 const db = firebase.firestore();
 
-export { auth, db, provider };
+export { auth, db, firebase, provider };
