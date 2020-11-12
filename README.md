@@ -16,11 +16,11 @@ Learn [React](https://reactjs.org) and [Firebase](https://firebase.google.com) w
   - [Usage](#usage)
   - [Lessons](#lessons)
     - [1. Setup Firebase](#1-setup-firebase)
-    - [2. Setup Authentication](#2-setup-authentication)
-      - [2.1. Facebook](#21-facebook)
-    - [3. Setup Netlify](#3-setup-netlify)
+    - [2. Setup Cloud Firestore](#2-setup-cloud-firestore)
+    - [3. Setup Authentication](#3-setup-authentication)
       - [3.1. Facebook](#31-facebook)
-    - [4. Setup Cloud Firestore](#4-setup-cloud-firestore)
+    - [4. Setup Netlify](#4-setup-netlify)
+      - [4.1. Facebook](#41-facebook)
   - [References](#references)
   - [License](#license)
 
@@ -95,13 +95,13 @@ See <https://ejelome-react-chat.netlify.app>.
   +  REACT_APP_FIREBASE_APP_ID=<appId>
   ```
 
-  1.2.2. Install `firebase`
+- 1.2.2. Install `firebase`
 
   ```shell
   $ npm i firebase
   ```
 
-  1.2.3. Initialize `firebase`
+- 1.2.3. Initialize `firebase`
 
   ```diff
   --- src/firebase.js
@@ -128,55 +128,105 @@ See <https://ejelome-react-chat.netlify.app>.
 
 </details>
 
-### 2. Setup Authentication
+### 2. Setup Cloud Firestore
 
 <details>
-  <summary>2.1. Setup remote</summary>
+  <summary>2.1. Setup database</summary>
 
-- 2.1.1. On `Project Overview`, click `Authentication`
-- 2.1.2. Click `Get started`
-- 2.1.3. Click `Sign-in method`
-- 2.1.4. Under `Sign-in providers`, click a provider (e.g. `Facebook`)
+- 2.1.1. Go back to `Project Overview`
+- 2.1.2. Click `Cloud Firestore`
+- 2.1.3. Click `Create database`
+- 2.1.4. Select `Start in production mode` then click `Next`
+- 2.1.5. Select a `Cloud Firestore location` (e.g. `asia-southeast2`) the click `Enable`
 
-  - 2.1.4.1. Click `Enable`
-  - 2.1.4.2. Provide required details
-  - 2.1.4.3. Click `Save`
-
-#### 2.1. Facebook
-
-- 2.1.1. Log in on [Facebook for Developers](https://developers.facebook.com)
-- 2.1.2. Click `My Apps`
-- 2.1.3. Click `Create App`
-
-  - 2.1.3.1. Click `Build Connected Experiences`
-  - 2.1.3.2. Write `App Display Name` (e.g. `react-chat`)
-  - 2.1.3.3. Click `Create App`
-  - 2.1.3.4. Pass `Security Check` then click `Submit`
-
-- 2.1.4. Click `Setup` under `Facebook Login`
-- 2.1.5. Click `www` (Web) icon
-
-  - 2.1.5.1. Write `Site URL` (e.g. http://localhost:3000)
-  - 2.1.5.2. Click `Save`
-
-- 2.1.6. Click `Settings` then `Basic`
-
-  - 2.1.6.1. Copy and paste `App ID` on `App ID` in `Facebook`'s `Sign-in providers`
-  - 2.1.6.2. Click `Show` on `App Secret`
-  - 2.1.6.3. Copy and paste `App ID` on `App secret` in `Facebook`'s `Sign-in providers`
-
-- 2.1.7. Under `PRODUCTS`, click `Facebook Login` then `Settings`
-
-  - 2.1.7.1. Copy `OAuth redirect URI` from `Facebook`'s `Sign-in providers`
-  - 2.1.7.2. Paste it on `Valid OAuth Redirect URIs`
-  - 2.1.7.3. Click `Save Changes`
+> **NOTES**
+>
+> - `Cloud Firestore` (new) is the successor of `Realtime Database` (old)
+> - The `Cloud Firestore location` must be where the app be mostly used
 
 </details>
 
 <details>
-  <summary>2.1. Setup local</summary>
+  <summary>2.2. Setup rules</summary>
 
-- 2.1.1. Export `auth` and provider (e.g. `Facebook*`)
+- 2.2.1. Click `Data`
+- 2.2.2. Write `Edit rules`
+
+  ```diff
+  --- Edit rules
+  +++ Edit Rules
+  @@ -1,8 +1,9 @@
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+  -    match /{document=**} {
+  -      allow read, write: if false;
+  +    match /users/{uid} {
+  +      allow read, update, delete: if request.auth != null && request.auth.uid == uid;
+  +      allow create: if request.auth != null;
+       }
+     }
+   }
+  ```
+
+- 2.2.3. Click `Publish`
+
+> **NOTES**
+>
+> - `request.auth != null` only allows action if authenticated
+> - `request.auth.uid == uid` only allows action if authenticated `uid` is the `Document ID`
+
+</details>
+
+### 3. Setup Authentication
+
+<details>
+  <summary>3.1. Setup remote</summary>
+
+- 3.1.1. On `Project Overview`, click `Authentication`
+- 3.1.2. Click `Get started`
+- 3.1.3. Click `Sign-in method`
+- 3.1.4. Under `Sign-in providers`, click a provider (e.g. `Facebook`)
+
+  - 3.1.4.1. Click `Enable`
+  - 3.1.4.2. Provide required details
+  - 3.1.4.3. Click `Save`
+
+#### 3.1. Facebook
+
+- 3.1.1. Log in on [Facebook for Developers](https://developers.facebook.com)
+- 3.1.2. Click `My Apps`
+- 3.1.3. Click `Create App`
+
+  - 3.1.3.1. Click `Build Connected Experiences`
+  - 3.1.3.2. Write `App Display Name` (e.g. `react-chat`)
+  - 3.1.3.3. Click `Create App`
+  - 3.1.3.4. Pass `Security Check` then click `Submit`
+
+- 3.1.4. Click `Setup` under `Facebook Login`
+- 3.1.5. Click `www` (Web) icon
+
+  - 3.1.5.1. Write `Site URL` (e.g. http://localhost:3000)
+  - 3.1.5.2. Click `Save`
+
+- 3.1.6. Click `Settings` then `Basic`
+
+  - 3.1.6.1. Copy and paste `App ID` on `App ID` in `Facebook`'s `Sign-in providers`
+  - 3.1.6.2. Click `Show` on `App Secret`
+  - 3.1.6.3. Copy and paste `App ID` on `App secret` in `Facebook`'s `Sign-in providers`
+
+- 3.1.7. Under `PRODUCTS`, click `Facebook Login` then `Settings`
+
+  - 3.1.7.1. Copy `OAuth redirect URI` from `Facebook`'s `Sign-in providers`
+  - 3.1.7.2. Paste it on `Valid OAuth Redirect URIs`
+  - 3.1.7.3. Click `Save Changes`
+
+</details>
+
+<details>
+  <summary>3.2. Setup local</summary>
+
+- 3.2.1. Export `auth` and provider (e.g. `Facebook*`)
 
   ```diff
   --- src/firebase.js
@@ -212,7 +262,7 @@ See <https://ejelome-react-chat.netlify.app>.
   > - `Auth` should not be called directly, use `auth` instead to get `Auth`
   > - `FacebookAuthProvider` is the Facebook auth provider
 
-- 2.1.2. Use `auth` with provider
+- 3.2.2. Use `auth` with provider
 
   ```diff
   --- src/App.js
@@ -312,7 +362,7 @@ See <https://ejelome-react-chat.netlify.app>.
   > - `update` updates only the specified document fields, fails if document don't exist
   > - Since _writes_ are twice as expensive than _reads_, avoid unnecessary writes (`set`, `update`)
 
-- 2.1.3 Preserve authentication on re-render
+- 3.2.3 Preserve authentication on re-render
 
   ```diff
   --- src/App.js
@@ -390,7 +440,7 @@ See <https://ejelome-react-chat.netlify.app>.
   > - `onAuthStateChanged` adds an observer that triggers on user's sign-in/out state
   > - Assigning and returning its callback ensures cleanup when components re-render
 
-- 2.1.4. Include signing out
+- 3.2.4. Include signing out
 
   ```diff
   --- src/App.js
@@ -473,84 +523,34 @@ See <https://ejelome-react-chat.netlify.app>.
 
 </details>
 
-### 3. Setup Netlify
+### 4. Setup Netlify
 
 <details>
-  <summary>3.1. Setup domain</summary>
+  <summary>4.1. Setup domain</summary>
 
-- 3.1.1. Go back to `Project Overview`
-- 3.1.2. Click `Authentication`
-- 3.1.3. Click `Sign-in method`
-- 3.1.4. Under `Sign-in providers`, select provider (e.g. `Facebook`)
-- 3.1.5. Click `Add domain`
-- 3.1.6. Enter domain (e.g. `<username>-react-chat.netlify.app`)
-- 3.1.7. Click `Add`
+- 4.1.1. Go back to `Project Overview`
+- 4.1.2. Click `Authentication`
+- 4.1.3. Click `Sign-in method`
+- 4.1.4. Under `Sign-in providers`, select provider (e.g. `Facebook`)
+- 4.1.5. Click `Add domain`
+- 4.1.6. Enter domain (e.g. `<username>-react-chat.netlify.app`)
+- 4.1.7. Click `Add`
 
 </details>
 
-#### 3.1. Facebook
+#### 4.1. Facebook
 
 <details>
-  <summary>3.1.1. Setup tester</summary>
+  <summary>4.1.1. Setup tester</summary>
 
-- 3.1.1.1. Go back to app's `Dashboard`
-- 3.1.1.2. Click `Roles` then `Roles`
-- 3.1.1.3. Under `Testers`, click `Add Tester`
-- 3.1.1.4. Enter user
-- 3.1.1.5. Click `Submit`
+- 4.1.1.1. Go back to app's `Dashboard`
+- 4.1.1.2. Click `Roles` then `Roles`
+- 4.1.1.3. Under `Testers`, click `Add Tester`
+- 4.1.1.4. Enter user
+- 4.1.1.5. Click `Submit`
 
 > **NOTE** <br />
 > The user(s) will receive a verification on Facebook that must be confirmed.
-
-</details>
-
-### 4. Setup Cloud Firestore
-
-<details>
-  <summary>4.1. Setup database</summary>
-
-- 4.1.1. Go back to `Project Overview`
-- 4.1.2. Click `Cloud Firestore`
-- 4.1.3. Click `Create database`
-- 4.1.4. Select `Start in production mode` then click `Next`
-- 4.1.5. Select a `Cloud Firestore location` (e.g. `asia-southeast2`) the click `Enable`
-
-> **NOTES**
->
-> - `Cloud Firestore` (new) is the successor of `Realtime Database` (old)
-> - The `Cloud Firestore location` must be where the app be mostly used
-
-</details>
-
-<details>
-  <summary>4.2. Setup rules</summary>
-
-- 4.2.1. Click `Data`
-- 4.2.2. Write `Edit rules`
-
-  ```diff
-  --- Edit rules
-  +++ Edit Rules
-  @@ -1,8 +1,9 @@
-   rules_version = '2';
-   service cloud.firestore {
-     match /databases/{database}/documents {
-  -    match /{document=**} {
-  -      allow read, write: if false;
-  +    match /users/{uid} {
-  +      allow read, update, delete: if request.auth != null && request.auth.uid == uid;
-  +      allow create: if request.auth != null;
-       }
-     }
-   }
-  ```
-
-- 4.2.3. Click `Publish`
-
-> **NOTES**
->
-> - `request.auth != null` only allows action if authenticated
-> - `request.auth.uid == uid` only allows action if authenticated `uid` is the `Document ID`
 
 </details>
 
