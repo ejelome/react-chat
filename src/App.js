@@ -30,6 +30,20 @@ const App = () => {
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    db.collection("messages")
+      .orderBy("timestamp", "desc")
+      .get()
+      .then((qs) => {
+        const messages = [];
+
+        qs.forEach((doc) => messages.push(doc.data()));
+
+        setData((prevData) => ({ ...prevData, messages }));
+      })
+      .catch((error) => console.log(error));
+  }, []);
+
   const handleFacebookSignIn = () => {
     const { facebook } = provider;
 
@@ -78,7 +92,6 @@ const App = () => {
           messages: [message, ...prevData.messages],
         }));
       })
-
       .catch((error) => console.log(error));
 
     inputRef.current.value = "";
