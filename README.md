@@ -120,6 +120,12 @@ See <https://ejelome-react-chat.netlify.app>.
   +});
   ```
 
+  > **NOTES**
+  >
+  > - `initializeApp` creates and initializes a firebase `app` instance
+  > - `app` contains initialization information of collection of services
+  > - `app` should not be called directly, use `initializeApp` to create `app`
+
 </details>
 
 ### 2. Setup Authentication
@@ -199,12 +205,19 @@ See <https://ejelome-react-chat.netlify.app>.
   +export { auth, provider };
   ```
 
+  > **NOTES**
+  >
+  > - `auth` gets the `Auth` service of the default (or given) `app`
+  > - `Auth` is the firebase Auth service interface
+  > - `Auth` should not be called directly, use `auth` instead to get `Auth`
+  > - `FacebookAuthProvider` is the Facebook auth provider
+
 - 2.1.2. Use `auth` with provider
 
   ```diff
   --- src/App.js
   +++ src/App.js
-  @@ -1,25 +1,28 @@
+  @@ -1,25 +1,46 @@
   -import logo from './logo.svg';
   -import './App.css';
   +import { useState } from "react";
@@ -227,26 +240,44 @@ See <https://ejelome-react-chat.netlify.app>.
   -        </a>
   -      </header>
   -    </div>
-  +import { auth, provider } from "./firebase";
+  +import { auth, db, provider } from "./firebase";
   +
   +const App = () => {
-  +  const initialState = {};
-  +  const [account, setAccount] = useState(initialState);
-  +  const { user } = account;
+  +  const initialState = { user: null };
+  +  const [data, setData] = useState(initialState);
+  +  const { user } = data;
   +
   +  const handleFacebookSignIn = () => {
   +    const { facebook } = provider;
   +
   +    auth
   +      .signInWithPopup(facebook)
-  +      .then(({ user }) =>
-  +        setAccount((prevAccount) => ({ ...prevAccount, user }))
-  +      )
+  +      .then(({ user, credential }) => {
+  +        const { uid, email, displayName: name, photoURL: avatar } = user;
+  +        const { accessToken } = credential;
+  +        const newUser = { uid, email, name, avatar, accessToken };
+  +
+  +        db.collection("users")
+  +          .doc(uid)
+  +          .get()
+  +          .then(({ exists }) => {
+  +            if (!exists) {
+  +              db.collection("users").doc(uid).set(newUser);
+  +            } else {
+  +              db.collection("users").doc(uid).update({ accessToken });
+  +            }
+  +
+  +            setData((prevData) => ({ ...prevData, user: newUser }));
+  +          })
+  +          .catch((error) => console.log(error));
+  +      })
   +      .catch((error) => console.error(error));
   +  };
   +
-  +  return user ? (
-  +    <h1>Hello {user.displayName}!</h1>
+  +  return user && Object.keys(user).length ? (
+  +    <h1>
+  +      <span>Hello {user.name}!</span>
+  +    </h1>
   +  ) : (
   +    <button onClick={handleFacebookSignIn}>Sign in with Facebook</button>
      );
@@ -256,25 +287,60 @@ See <https://ejelome-react-chat.netlify.app>.
    export default App;
   ```
 
-- 2.1.3 Resolve authentication on render
+  > **NOTES**
+  >
+  > - `signInWithPopup` authenticates with pop-up based OAuth authenticaion flow
+  > - `signInWithPopup` returns `user`, `credential`, `additionalUserInfo` and `operationType` if successful
+  > - `signInWithPopup` returns an `error` object if unsuccessful
+  > - `user` and `additionalUserInfo` objects contain user information
+  > - `user` is where to get the `uid` that can be used with firebase
+  > - `additionalUserInfo` is where to know if a user is a newly registered user
+  > - `credential` object contains tokens, provider ID and sign in method used
+  > - `credential` is where to obtain `accessToken` used to display profile image
+  > - `operationType` is a string containing type of operation used (e.g. `signIn`)
+  > - `collection` gets a `CollectionReference` object
+  > - `CollectionReference` is used for adding, getting and querying documents
+  > - `doc` gets a `DocumentReference` object within the collection
+  > - `DocumentReference` refers to a document location in firestore
+  > - `get` returns query results as `QuerySnapshot`
+  > - `QuerySnapshot` returns zero or more `DocumentSnapshot` objects
+  > - `DocumentSnapshot` returns document data that can be read with `data()` or `get()`
+  > - `data()` returns the whole document while `get()` returns the specific document field
+  > - `exists` can be used to verify if a document exists before further access
+  > - `set` creates (if none existing) or overwrites the whole document
+  > - `set` with the option `merge` will only overwrite specified document fields
+  > - `update` updates only the specified document fields, fails if document don't exist
+  > - Since _writes_ are twice as expensive than _reads_, avoid unnecessary writes (`set`, `update`)
+
+- 2.1.3 Preserve authentication on re-render
 
   ```diff
   --- src/App.js
   +++ src/App.js
-  @@ -1,28 +1,36 @@
+  @@ -1,46 +1,64 @@
   -import { useState } from "react";
   +import { useEffect, useState } from "react";
 
-   import { auth, provider } from "./firebase";
+   import { auth, db, provider } from "./firebase";
 
    const App = () => {
-     const initialState = {};
-     const [account, setAccount] = useState(initialState);
-     const { user } = account;
+     const initialState = { user: null };
+     const [data, setData] = useState(initialState);
+     const { user } = data;
 
   +  useEffect(() => {
   +    const unsubscribe = auth.onAuthStateChanged((user) => {
-  +      setAccount((prevAccount) => ({ ...prevAccount, user }));
+  +      if (user) {
+  +        const { uid } = user;
+  +
+  +        db.collection("users")
+  +          .doc(uid)
+  +          .get()
+  +          .then((doc) =>
+  +            setData((prevData) => ({ ...prevData, user: doc.data() }))
+  +          )
+  +          .catch((error) => console.log(error));
+  +      }
   +    });
   +
   +    return unsubscribe;
@@ -285,14 +351,32 @@ See <https://ejelome-react-chat.netlify.app>.
 
        auth
          .signInWithPopup(facebook)
-         .then(({ user }) =>
-           setAccount((prevAccount) => ({ ...prevAccount, user }))
-         )
+         .then(({ user, credential }) => {
+           const { uid, email, displayName: name, photoURL: avatar } = user;
+           const { accessToken } = credential;
+           const newUser = { uid, email, name, avatar, accessToken };
+
+           db.collection("users")
+             .doc(uid)
+             .get()
+             .then(({ exists }) => {
+               if (!exists) {
+                 db.collection("users").doc(uid).set(newUser);
+               } else {
+                 db.collection("users").doc(uid).update({ accessToken });
+               }
+
+               setData((prevData) => ({ ...prevData, user: newUser }));
+             })
+             .catch((error) => console.log(error));
+         })
          .catch((error) => console.error(error));
      };
 
-     return user ? (
-       <h1>Hello {user.displayName}!</h1>
+     return user && Object.keys(user).length ? (
+       <h1>
+         <span>Hello {user.name}!</span>
+       </h1>
      ) : (
        <button onClick={handleFacebookSignIn}>Sign in with Facebook</button>
      );
@@ -301,24 +385,39 @@ See <https://ejelome-react-chat.netlify.app>.
    export default App;
   ```
 
+  > **NOTES**
+  >
+  > - `onAuthStateChanged` adds an observer that triggers on user's sign-in/out state
+  > - Assigning and returning its callback ensures cleanup when components re-render
+
 - 2.1.4. Include signing out
 
   ```diff
   --- src/App.js
   +++ src/App.js
-  @@ -1,36 +1,43 @@
+  @@ -1,64 +1,70 @@
    import { useEffect, useState } from "react";
 
-   import { auth, provider } from "./firebase";
+   import { auth, db, provider } from "./firebase";
 
    const App = () => {
-     const initialState = {};
-     const [account, setAccount] = useState(initialState);
-     const { user } = account;
+     const initialState = { user: null };
+     const [data, setData] = useState(initialState);
+     const { user } = data;
 
      useEffect(() => {
        const unsubscribe = auth.onAuthStateChanged((user) => {
-         setAccount((prevAccount) => ({ ...prevAccount, user }));
+         if (user) {
+           const { uid } = user;
+
+           db.collection("users")
+             .doc(uid)
+             .get()
+             .then((doc) =>
+               setData((prevData) => ({ ...prevData, user: doc.data() }))
+             )
+             .catch((error) => console.log(error));
+         }
        });
 
        return unsubscribe;
@@ -329,22 +428,38 @@ See <https://ejelome-react-chat.netlify.app>.
 
        auth
          .signInWithPopup(facebook)
-         .then(({ user }) =>
-           setAccount((prevAccount) => ({ ...prevAccount, user }))
-         )
+         .then(({ user, credential }) => {
+           const { uid, email, displayName: name, photoURL: avatar } = user;
+           const { accessToken } = credential;
+           const newUser = { uid, email, name, avatar, accessToken };
+
+           db.collection("users")
+             .doc(uid)
+             .get()
+             .then(({ exists }) => {
+               if (!exists) {
+                 db.collection("users").doc(uid).set(newUser);
+               } else {
+                 db.collection("users").doc(uid).update({ accessToken });
+               }
+
+               setData((prevData) => ({ ...prevData, user: newUser }));
+             })
+             .catch((error) => console.log(error));
+         })
          .catch((error) => console.error(error));
      };
 
   +  const handleSignOut = () => {
   +    auth.signOut().catch((error) => console.error(error));
+  +    setData(initialState);
   +  };
   +
-     return user ? (
-  -    <h1>Hello {user.displayName}!</h1>
-  +    <>
-  +      <h1>Hello {user.displayName}!</h1>
+     return user && Object.keys(user).length ? (
+       <h1>
+         <span>Hello {user.name}!</span>
   +      <button onClick={handleSignOut}>Sign Out</button>
-  +    </>
+       </h1>
      ) : (
        <button onClick={handleFacebookSignIn}>Sign in with Facebook</button>
      );
@@ -352,6 +467,9 @@ See <https://ejelome-react-chat.netlify.app>.
 
    export default App;
   ```
+
+  > **NOTE** <br />
+  > The `signOut`, as the name implies, signs out the signed-in user.
 
 </details>
 
@@ -436,115 +554,6 @@ See <https://ejelome-react-chat.netlify.app>.
 
 </details>
 
-<details>
-  <summary>4.3. Setup local</summary>
-
-- 4.3.1. Export `firestore`
-
-  ```diff
-  --- src/firebase.js
-  +++ src/firebase.js
-  @@ -1,21 +1,24 @@
-   import "firebase/auth";
-  +import "firebase/firestore";
-
-   import firebase from "firebase/app";
-
-   firebase.initializeApp({
-     apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-     authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-     databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL,
-     projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-     storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-     messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-     appId: process.env.REACT_APP_FIREBASE_APP_ID,
-   });
-
-   const auth = firebase.auth();
-
-   const provider = {
-     facebook: new firebase.auth.FacebookAuthProvider(),
-   };
-
-  -export { auth, provider };
-  +const db = firebase.firestore();
-  +
-  +export { auth, db, provider };
-  ```
-
-- 4.3.2. Use `firestore`
-
-  ```diff
-  --- src/App.js
-  +++ src/App.js
-  @@ -1,43 +1,51 @@
-   import { useEffect, useState } from "react";
-
-  -import { auth, provider } from "./firebase";
-  +import { auth, db, provider } from "./firebase";
-
-   const App = () => {
-     const initialState = {};
-     const [account, setAccount] = useState(initialState);
-     const { user } = account;
-
-     useEffect(() => {
-       const unsubscribe = auth.onAuthStateChanged((user) => {
-         setAccount((prevAccount) => ({ ...prevAccount, user }));
-       });
-
-       return unsubscribe;
-     }, []);
-
-     const handleFacebookSignIn = () => {
-       const { facebook } = provider;
-
-       auth
-         .signInWithPopup(facebook)
-  -      .then(({ user }) =>
-  -        setAccount((prevAccount) => ({ ...prevAccount, user }))
-  -      )
-  +      .then(({ user: { email, uid } }) => {
-  +        db.collection("users")
-  +          .doc(uid)
-  +          .get()
-  +          .then(
-  +            ({ exists }) =>
-  +              !exists && db.collection("users").doc(uid).set({ email })
-  +          )
-  +          .catch((error) => console.log(error));
-  +
-  +        setAccount((prevAccount) => ({ ...prevAccount, user }));
-  +      })
-         .catch((error) => console.error(error));
-     };
-
-     const handleSignOut = () => {
-       auth.signOut().catch((error) => console.error(error));
-     };
-  -
-     return user ? (
-       <>
-         <h1>Hello {user.displayName}!</h1>
-         <button onClick={handleSignOut}>Sign Out</button>
-       </>
-     ) : (
-       <button onClick={handleFacebookSignIn}>Sign in with Facebook</button>
-     );
-   };
-
-   export default App;
-  ```
-
-> **NOTES**
->
-> - `.collection` will create the collection if it doesn't exist
-> - `exists` can be used to check if a `doc` already exists
-> - `.set` will overwrite the whole document (or use `merge` to patch)
-> - Since `writes` is twice as expensive as `reads`, avoid unnecessary overwrites (`.set`)
-
-</details>
-
 ---
 
 ## References
@@ -553,6 +562,7 @@ See <https://ejelome-react-chat.netlify.app>.
 - [Get to know Cloud Firestore](https://youtube.com/playlist?list=PLl-K7zZEsYLluG5MCVEzXAQ7ACZBCuZgZ)
 - [Get started with Cloud Firestore](https://firebase.google.com/docs/firestore/quickstart)
 - [Writing conditions for Cloud Firestore Security Rules](https://firebase.google.com/docs/firestore/security/rules-conditions)
+- [Firebase JavaScript SDK Reference](https://firebase.google.com/docs/reference/js)
 
 ---
 
