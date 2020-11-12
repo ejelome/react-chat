@@ -21,6 +21,7 @@ Learn [React](https://reactjs.org) and [Firebase](https://firebase.google.com) w
       - [3.1. Facebook](#31-facebook)
     - [4. Setup Netlify](#4-setup-netlify)
       - [4.1. Facebook](#41-facebook)
+    - [5. Write, read, delete](#5-write-read-delete)
   - [References](#references)
   - [License](#license)
 
@@ -551,6 +552,201 @@ See <https://ejelome-react-chat.netlify.app>.
 
 > **NOTE** <br />
 > The user(s) will receive a verification on Facebook that must be confirmed.
+
+</details>
+
+### 5. Write, read, delete
+
+> `add`, `get`, `set`, `update` and `delete`.
+
+<details>
+  <summary>5.1. Write (<code>add</code>, <code>set</code> or <code>update</code>)</summary>
+
+- 5.1.1. Export `firebase`
+
+  ```diff
+  --- src/firebase.js
+  +++ src/firebase.js
+  @@ -1,24 +1,24 @@
+   import "firebase/auth";
+   import "firebase/firestore";
+
+   import firebase from "firebase/app";
+
+   firebase.initializeApp({
+     apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+     authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+     databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL,
+     projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+     storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+     messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+     appId: process.env.REACT_APP_FIREBASE_APP_ID,
+   });
+
+   const auth = firebase.auth();
+
+   const provider = {
+     facebook: new firebase.auth.FacebookAuthProvider(),
+   };
+
+   const db = firebase.firestore();
+
+  -export { auth, db, provider };
+  +export { auth, db, firebase, provider };
+  ```
+
+  > **NOTE** <br />
+  > Export `firebase` to later generate timestamps from `FieldValue.serverTimestamp`.
+
+- 5.1.2. Use `add` with a timestamp
+
+  ```diff
+  --- src/App.js
+  +++ src/App.js
+  @@ -1,70 +1,125 @@
+  -import { useEffect, useState } from "react";
+  +import { useEffect, useRef, useState } from "react";
+
+  -import { auth, db, provider } from "./firebase";
+  +import { auth, db, firebase, provider } from "./firebase";
+
+   const App = () => {
+  -  const initialState = { user: null };
+  +  const initialState = {
+  +    user: null,
+  +    messages: [],
+  +  };
+     const [data, setData] = useState(initialState);
+  -  const { user } = data;
+  +  const { user, messages } = data;
+  +
+  +  const inputRef = useRef();
+
+     useEffect(() => {
+       const unsubscribe = auth.onAuthStateChanged((user) => {
+         if (user) {
+           const { uid } = user;
+
+           db.collection("users")
+             .doc(uid)
+             .get()
+             .then((doc) =>
+               setData((prevData) => ({ ...prevData, user: doc.data() }))
+             )
+             .catch((error) => console.log(error));
+         }
+       });
+
+       return unsubscribe;
+     }, []);
+
+     const handleFacebookSignIn = () => {
+       const { facebook } = provider;
+
+       auth
+         .signInWithPopup(facebook)
+         .then(({ user, credential }) => {
+           const { uid, email, displayName: name, photoURL: avatar } = user;
+           const { accessToken } = credential;
+           const newUser = { uid, email, name, avatar, accessToken };
+
+           db.collection("users")
+             .doc(uid)
+             .get()
+             .then(({ exists }) => {
+               if (!exists) {
+                 db.collection("users").doc(uid).set(newUser);
+               } else {
+                 db.collection("users").doc(uid).update({ accessToken });
+               }
+
+               setData((prevData) => ({ ...prevData, user: newUser }));
+             })
+             .catch((error) => console.log(error));
+         })
+         .catch((error) => console.error(error));
+     };
+
+     const handleSignOut = () => {
+       auth.signOut().catch((error) => console.error(error));
+       setData(initialState);
+     };
+
+  +  const handleSend = () => {
+  +    const { value: text } = inputRef.current;
+  +    const { uid, avatar, name } = user;
+  +    const timestamp = firebase.firestore.FieldValue.serverTimestamp();
+  +    const message = { uid, avatar, name, text, timestamp };
+  +
+  +    db.collection("messages")
+  +      .add(message)
+  +      .then(({ id }) => {
+  +        message.id = id;
+  +
+  +        setData((prevData) => ({
+  +          ...prevData,
+  +          messages: [message, ...prevData.messages],
+  +        }));
+  +      })
+  +
+  +      .catch((error) => console.log(error));
+  +
+  +    inputRef.current.value = "";
+  +  };
+  +
+  +  const handleSendEnter = ({ key }) => {
+  +    const sendInputRefValue = inputRef.current.value.trim();
+  +
+  +    sendInputRefValue && key.toLowerCase() === "enter" && handleSend();
+  +  };
+  +
+     return user && Object.keys(user).length ? (
+  -    <h1>
+  -      <span>Hello {user.name}!</span>
+  -      <button onClick={handleSignOut}>Sign Out</button>
+  -    </h1>
+  +    <>
+  +      <h1>
+  +        <span>Hello {user.name}!</span>
+  +        <button onClick={handleSignOut}>Sign Out</button>
+  +      </h1>
+  +      <div>
+  +        <h2>Message</h2>
+  +        <input ref={inputRef} onKeyDown={handleSendEnter} />
+  +        <button onClick={handleSend}>Send</button>
+  +        <ul>
+  +          {messages.map(({ avatar, name, text, timestamp }) => {
+  +            avatar = `${avatar}?access_token=${user.accessToken}`;
+  +
+  +            return (
+  +              <li key={timestamp}>
+  +                <div>
+  +                  <img src={avatar} alt="" />
+  +                </div>
+  +                <em>{name} says:</em>
+  +                <p>{text}</p>
+  +              </li>
+  +            );
+  +          })}
+  +        </ul>
+  +      </div>
+  +    </>
+     ) : (
+       <button onClick={handleFacebookSignIn}>Sign in with Facebook</button>
+     );
+   };
+
+   export default App;
+  ```
+
+  > **NOTES**
+  >
+  > - `FieldValue` provides sentinel values (e.g. flags, dummy data, etc.)
+  > - `serverTimestamp` returns a server-generated timestamp
+  > - `serverTimestamp` is commonly used as `Document ID`s for sort/order-ing
+  > - `add` adds a new document to the specified collection
+  > - `[message, ...prevData.messages]` _prepends_ the item to the array
+  > - `?access_token` is required from Facebook to display the profile photo
 
 </details>
 
