@@ -104,6 +104,18 @@ const App = () => {
     sendInputRefValue && key.toLowerCase() === "enter" && handleSend();
   };
 
+  const handleDelete = (id) =>
+    db
+      .collection("messages")
+      .doc(id)
+      .delete()
+      .then(() => {
+        const newMessages = messages.filter(({ id: msgId }) => id !== msgId);
+
+        setData((prevData) => ({ ...prevData, messages: newMessages }));
+      })
+      .catch((error) => console.log(error));
+
   return user && Object.keys(user).length ? (
     <>
       <h1>
@@ -124,7 +136,10 @@ const App = () => {
                   <img src={avatar} alt="" />
                 </div>
                 <em>{name} says:</em>
-                <p>{text}</p>
+                <p>
+                  {text}
+                  <button onClick={() => handleDelete(id)}>x</button>
+                </p>
               </li>
             );
           })}
