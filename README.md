@@ -156,26 +156,31 @@ See <https://ejelome-react-chat.netlify.app>.
   ```diff
   --- Edit rules
   +++ Edit Rules
-  @@ -1,8 +1,9 @@
+  @@ -1,8 +1,13 @@
    rules_version = '2';
    service cloud.firestore {
      match /databases/{database}/documents {
   -    match /{document=**} {
   -      allow read, write: if false;
   +    match /users/{uid} {
-  +      allow read, update, delete: if request.auth != null && request.auth.uid == uid;
-  +      allow create: if request.auth != null;
+  +      allow update, delete: if request.auth != null && request.auth.uid == uid;
+  +      allow create, read: if request.auth != null;
+  +    }
+  +    match /messages/{id} {
+  +      allow update, delete: if request.auth != null && request.auth.uid == resource.data.uid;
+  +      allow create, read: if request.auth != null;
        }
      }
    }
   ```
 
-- 2.2.3. Click `Publish`
+  > **NOTES**
+  >
+  > - `request.auth != null` only allows action if authenticated
+  > - `request.auth.uid == uid` only allows action if authenticated `uid` is the `Document ID`
+  > - `request.auth.uid == resource.data.uid` only allows action if authenticated user owns the document
 
-> **NOTES**
->
-> - `request.auth != null` only allows action if authenticated
-> - `request.auth.uid == uid` only allows action if authenticated `uid` is the `Document ID`
+- 2.2.3. Click `Publish`
 
 </details>
 
