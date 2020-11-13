@@ -1,16 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { auth, db, firebase, provider } from "./firebase";
+import { auth, db, provider } from "./firebase";
 
 const App = () => {
-  const initialState = {
-    user: null,
-    messages: [],
-  };
+  const initialState = { user: null };
   const [data, setData] = useState(initialState);
-  const { user, messages } = data;
-
-  const inputRef = useRef();
+  const { user } = data;
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -28,20 +23,6 @@ const App = () => {
     });
 
     return unsubscribe;
-  }, []);
-
-  useEffect(() => {
-    db.collection("messages")
-      .orderBy("timestamp", "desc")
-      .get()
-      .then((qs) => {
-        const messages = [];
-
-        qs.forEach((doc) => messages.push(doc.data()));
-
-        setData((prevData) => ({ ...prevData, messages }));
-      })
-      .catch((error) => console.log(error));
   }, []);
 
   const handleFacebookSignIn = () => {
@@ -76,59 +57,12 @@ const App = () => {
     setData(initialState);
   };
 
-  const handleSend = () => {
-    const { value: text } = inputRef.current;
-    const { uid, avatar, name } = user;
-    const timestamp = firebase.firestore.FieldValue.serverTimestamp();
-    const message = { uid, avatar, name, text, timestamp };
-
-    db.collection("messages")
-      .add(message)
-      .then(({ id }) => {
-        message.id = id;
-
-        setData((prevData) => ({
-          ...prevData,
-          messages: [message, ...prevData.messages],
-        }));
-      })
-      .catch((error) => console.log(error));
-
-    inputRef.current.value = "";
-  };
-
-  const handleSendEnter = ({ key }) => {
-    const sendInputRefValue = inputRef.current.value.trim();
-
-    sendInputRefValue && key.toLowerCase() === "enter" && handleSend();
-  };
-
   return user && Object.keys(user).length ? (
     <>
       <h1>
         <span>Hello {user.name}!</span>
         <button onClick={handleSignOut}>Sign Out</button>
       </h1>
-      <div>
-        <h2>Message</h2>
-        <input ref={inputRef} onKeyDown={handleSendEnter} />
-        <button onClick={handleSend}>Send</button>
-        <ul>
-          {messages.map(({ avatar, name, text, timestamp }) => {
-            avatar = `${avatar}?access_token=${user.accessToken}`;
-
-            return (
-              <li key={timestamp}>
-                <div>
-                  <img src={avatar} alt="" />
-                </div>
-                <em>{name} says:</em>
-                <p>{text}</p>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
     </>
   ) : (
     <button onClick={handleFacebookSignIn}>Sign in with Facebook</button>
