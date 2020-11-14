@@ -691,10 +691,10 @@ See <https://ejelome-react-chat.netlify.app>.
   +    const { uid, avatar, name } = currentUser;
   +    const {
   +      firestore: {
-  +        FieldValue: { serverTimestamp: timestamp },
+  +        FieldValue: { serverTimestamp },
   +      },
   +    } = firebase;
-  +    const message = { uid, avatar, name, text, timestamp };
+  +    const message = { uid, avatar, name, text, timestamp: serverTimestamp() };
   +
   +    const docRef = db.collection("messages").doc();
   +    const newDoc = { id: docRef.id, ...message };
@@ -855,10 +855,10 @@ See <https://ejelome-react-chat.netlify.app>.
        const { uid, avatar, name } = currentUser;
        const {
          firestore: {
-           FieldValue: { serverTimestamp: timestamp },
+           FieldValue: { serverTimestamp },
          },
        } = firebase;
-       const message = { uid, avatar, name, text, timestamp };
+       const message = { uid, avatar, name, text, timestamp: serverTimestamp() };
 
        const docRef = db.collection("messages").doc();
        const newDoc = { id: docRef.id, ...message };
