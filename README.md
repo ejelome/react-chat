@@ -779,7 +779,7 @@ See <https://ejelome-react-chat.netlify.app>.
   ```diff
   --- src/App.js
   +++ src/App.js
-  @@ -1,122 +1,140 @@
+  @@ -1,126 +1,140 @@
    import firebase from "firebase";
    import { useEffect, useRef, useState } from "react";
 
@@ -806,23 +806,22 @@ See <https://ejelome-react-chat.netlify.app>.
        );
 
        return unsubscribe;
-  -  });
-  +  }, []);
-  +
+     }, []);
+
   +  useEffect(() => {
   +    db.collection("messages")
   +      .orderBy("timestamp", "desc")
   +      .get()
-  +      .then((qs) => {
+  +      .then((querySnapshot) => {
   +        const messages = [];
   +
-  +        qs.forEach((doc) => messages.push(doc.data()));
+  +        querySnapshot.forEach((doc) => messages.push(doc.data()));
   +
   +        setData((prevData) => ({ ...prevData, messages }));
   +      })
   +      .catch((error) => console.log(error));
   +  }, []);
-
+  +
      const handleFacebookSignIn = ({ facebook }) =>
        auth
          .signInWithPopup(facebook)
@@ -854,12 +853,11 @@ See <https://ejelome-react-chat.netlify.app>.
      const handleSend = () => {
        const { value: text } = inputRef.current;
        const { uid, avatar, name } = currentUser;
-  -    const timestamp = firebase.firestore.FieldValue.serverTimestamp();
-  +    const {
-  +      firestore: {
-  +        FieldValue: { serverTimestamp: timestamp },
-  +      },
-  +    } = firebase;
+       const {
+         firestore: {
+           FieldValue: { serverTimestamp: timestamp },
+         },
+       } = firebase;
        const message = { uid, avatar, name, text, timestamp };
 
        const docRef = db.collection("messages").doc();
