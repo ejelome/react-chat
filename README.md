@@ -335,21 +335,8 @@ See <https://ejelome-react-chat.netlify.app>.
   > - `credential` object contains tokens, provider ID and sign in method used
   > - `credential` is where to obtain `accessToken` used to display profile image
   > - `operationType` is a string containing type of operation used (e.g. `signIn`)
-  > - `collection` gets a `CollectionReference` object
-  > - `CollectionReference` is used for adding, getting and querying documents
-  > - `doc` gets a `DocumentReference` object within the collection
-  > - `DocumentReference` refers to a document location in firestore
-  > - `get` returns query results as `QuerySnapshot`
-  > - `QuerySnapshot` returns zero or more `DocumentSnapshot` objects
-  > - `DocumentSnapshot` returns document data that can be read with `data()` or `get()`
-  > - `data()` returns the whole document while `get()` returns the specific document field
-  > - `exists` can be used to verify if a document exists before further access
-  > - `set` creates (if none existing) or overwrites the whole document
-  > - `set` with the option `merge` will only overwrite specified document fields
-  > - `update` updates only the specified document fields, fails if document don't exist
-  > - Since _writes_ are twice as expensive than _reads_, avoid unnecessary writes (`set`, `update`)
 
-- 3.2.3 Preserve authentication on re-render
+- 3.2.3 Resolve authentication on re-render
 
   ```diff
   --- src/App.js
@@ -427,7 +414,25 @@ See <https://ejelome-react-chat.netlify.app>.
   > - `onAuthStateChanged` adds an observer that triggers on user's sign-in/out state
   > - Assigning and returning its callback ensures cleanup when components re-render
 
-- 3.2.4. Include signing out
+- 3.2.4 Store authenticated user to database
+
+  > **NOTES**
+  >
+  > - `collection` gets a `CollectionReference` object
+  > - `CollectionReference` is used for adding, getting and querying documents
+  > - `doc` gets a `DocumentReference` object within the collection
+  > - `DocumentReference` refers to a document location in firestore
+  > - `get` returns query results as `QuerySnapshot`
+  > - `QuerySnapshot` returns zero or more `DocumentSnapshot` objects
+  > - `DocumentSnapshot` returns document data that can be read with `data()` or `get()`
+  > - `data()` returns the whole document while `get()` returns the specific document field
+  > - `exists` can be used to verify if a document exists before further access
+  > - `set` creates (if none existing) or overwrites the whole document
+  > - `set` with the option `merge` will only overwrite specified document fields
+  > - `update` updates only the specified document fields, fails if document don't exist
+  > - Since _writes_ are twice as expensive than _reads_, avoid unnecessary writes (`set`, `update`)
+
+- 3.2.5. Include signing out
 
   ```diff
   --- src/App.js
