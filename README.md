@@ -12,6 +12,7 @@ Learn [React](https://reactjs.org) and [Firebase](https://firebase.google.com) w
 
 - [react-chat](#react-chat)
   - [Demo](#demo)
+  - [Screenshots](#screenshots)
   - [Setup](#setup)
   - [Usage](#usage)
   - [Lessons](#lessons)
@@ -32,6 +33,38 @@ Learn [React](https://reactjs.org) and [Firebase](https://firebase.google.com) w
 ## Demo
 
 See <https://ejelome-react-chat.netlify.app>.
+
+---
+
+## Screenshots
+
+<details>
+  <summary>Sign in with Facebook</summary>
+
+![](./screenshots/sign-in.gif)
+
+</details>
+
+<details>
+  <summary>Add message</summary>
+
+![](./screenshots/add-message.gif)
+
+</details>
+
+<details>
+  <summary>Delete message</summary>
+
+![](./screenshots/delete-message.gif)
+
+</details>
+
+<details>
+  <summary>Sign Out</summary>
+
+![](./screenshots/sign-out.gif)
+
+</details>
 
 ---
 
