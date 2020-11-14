@@ -268,7 +268,7 @@ See <https://ejelome-react-chat.netlify.app>.
   ```diff
   --- src/App.js
   +++ src/App.js
-  @@ -1,25 +1,46 @@
+  @@ -1,25 +1,32 @@
   -import logo from './logo.svg';
   -import './App.css';
   +import { useState } from "react";
@@ -291,16 +291,13 @@ See <https://ejelome-react-chat.netlify.app>.
   -        </a>
   -      </header>
   -    </div>
-  +import { auth, db, provider } from "./firebase";
+  +import { auth, provider } from "./firebase";
   +
   +const App = () => {
-  +  const initialState = { user: null };
+  +  const initialState = { currentUser: null };
   +  const [data, setData] = useState(initialState);
-  +  const { user } = data;
   +
-  +  const handleFacebookSignIn = () => {
-  +    const { facebook } = provider;
-  +
+  +  const handleFacebookSignIn = ({ facebook }) =>
   +    auth
   +      .signInWithPopup(facebook)
   +      .then(({ user, credential }) => {
@@ -308,29 +305,18 @@ See <https://ejelome-react-chat.netlify.app>.
   +        const { accessToken } = credential;
   +        const newUser = { uid, email, name, avatar, accessToken };
   +
-  +        db.collection("users")
-  +          .doc(uid)
-  +          .get()
-  +          .then(({ exists }) => {
-  +            if (!exists) {
-  +              db.collection("users").doc(uid).set(newUser);
-  +            } else {
-  +              db.collection("users").doc(uid).update({ accessToken });
-  +            }
-  +
-  +            setData((prevData) => ({ ...prevData, user: newUser }));
-  +          })
-  +          .catch((error) => console.log(error));
+  +        setData((prevData) => ({ ...prevData, currentUser: newUser }));
   +      })
   +      .catch((error) => console.error(error));
-  +  };
   +
-  +  return user && Object.keys(user).length ? (
-  +    <h1>
-  +      <span>Hello {user.name}!</span>
-  +    </h1>
+  +  const { currentUser } = data;
+  +
+  +  return currentUser ? (
+  +    <h1>Hello {currentUser.name}!</h1>
   +  ) : (
-  +    <button onClick={handleFacebookSignIn}>Sign in with Facebook</button>
+  +    <button onClick={() => handleFacebookSignIn(provider)}>
+  +      Sign in with Facebook
+  +    </button>
      );
   -}
   +};
