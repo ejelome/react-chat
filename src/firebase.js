@@ -13,12 +13,6 @@ firebase.initializeApp({
   appId: process.env.REACT_APP_FIREBASE_APP_ID,
 });
 
-const auth = firebase.auth();
-
-const provider = {
-  facebook: new firebase.auth.FacebookAuthProvider(),
-};
-
-const db = firebase.firestore();
-
-export { auth, db, firebase, provider };
+export const auth = firebase.auth();
+export const provider = { facebook: new firebase.auth.FacebookAuthProvider() };
+export const db = firebase.firestore();

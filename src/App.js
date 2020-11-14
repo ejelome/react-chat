@@ -1,31 +1,27 @@
+import firebase from "firebase";
 import { useEffect, useRef, useState } from "react";
 
-import { auth, db, firebase, provider } from "./firebase";
+import { auth, db, provider } from "./firebase";
 
 const App = () => {
-  const initialState = {
-    user: null,
-    messages: [],
-  };
+  const initialState = { currentUser: null, messages: [] };
   const [data, setData] = useState(initialState);
-  const { user, messages } = data;
 
   const inputRef = useRef();
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        const { uid } = user;
-
-        db.collection("users")
-          .doc(uid)
+    const unsubscribe = auth.onAuthStateChanged(
+      (user) =>
+        user &&
+        db
+          .collection("users")
+          .doc(user.uid)
           .get()
           .then((doc) =>
-            setData((prevData) => ({ ...prevData, user: doc.data() }))
+            setData((prevData) => ({ ...prevData, currentUser: doc.data() }))
           )
-          .catch((error) => console.log(error));
-      }
-    });
+          .catch((error) => console.log(error))
+    );
 
     return unsubscribe;
   }, []);
@@ -34,19 +30,17 @@ const App = () => {
     db.collection("messages")
       .orderBy("timestamp", "desc")
       .get()
-      .then((qs) => {
+      .then((querySnapshot) => {
         const messages = [];
 
-        qs.forEach((doc) => messages.push(doc.data()));
+        querySnapshot.forEach((doc) => messages.push(doc.data()));
 
         setData((prevData) => ({ ...prevData, messages }));
       })
       .catch((error) => console.log(error));
   }, []);
 
-  const handleFacebookSignIn = () => {
-    const { facebook } = provider;
-
+  const handleFacebookSignIn = ({ facebook }) =>
     auth
       .signInWithPopup(facebook)
       .then(({ user, credential }) => {
@@ -58,29 +52,31 @@ const App = () => {
           .doc(uid)
           .get()
           .then(({ exists }) => {
-            if (!exists) {
-              db.collection("users").doc(uid).set(newUser);
-            } else {
-              db.collection("users").doc(uid).update({ accessToken });
-            }
+            exists
+              ? db.collection("users").doc(uid).update({ accessToken })
+              : db.collection("users").doc(uid).set(newUser);
 
-            setData((prevData) => ({ ...prevData, user: newUser }));
+            setData((prevData) => ({ ...prevData, currentUser: newUser }));
           })
           .catch((error) => console.log(error));
       })
       .catch((error) => console.error(error));
-  };
 
-  const handleSignOut = () => {
-    auth.signOut().catch((error) => console.error(error));
-    setData(initialState);
-  };
+  const handleSignOut = () =>
+    auth
+      .signOut()
+      .then(() => setData(initialState))
+      .catch((error) => console.error(error));
 
   const handleSend = () => {
     const { value: text } = inputRef.current;
-    const { uid, avatar, name } = user;
-    const timestamp = firebase.firestore.FieldValue.serverTimestamp();
-    const message = { uid, avatar, name, text, timestamp };
+    const { uid, avatar, name } = currentUser;
+    const {
+      firestore: {
+        FieldValue: { serverTimestamp },
+      },
+    } = firebase;
+    const message = { uid, avatar, name, text, timestamp: serverTimestamp() };
 
     const docRef = db.collection("messages").doc();
     const newDoc = { id: docRef.id, ...message };
@@ -100,26 +96,29 @@ const App = () => {
 
   const handleSendEnter = ({ key }) => {
     const sendInputRefValue = inputRef.current.value.trim();
+    const keyCode = key.toLowerCase();
 
-    sendInputRefValue && key.toLowerCase() === "enter" && handleSend();
+    sendInputRefValue && keyCode === "enter" && handleSend();
   };
 
-  const handleDelete = (id) =>
+  const handleDelete = ({ messageId }) =>
     db
       .collection("messages")
-      .doc(id)
+      .doc(messageId)
       .delete()
       .then(() => {
-        const newMessages = messages.filter(({ id: msgId }) => id !== msgId);
+        const newMessages = messages.filter(({ id }) => id !== messageId);
 
         setData((prevData) => ({ ...prevData, messages: newMessages }));
       })
       .catch((error) => console.log(error));
 
-  return user && Object.keys(user).length ? (
+  const { currentUser, messages } = data;
+
+  return currentUser ? (
     <>
       <h1>
-        <span>Hello {user.name}!</span>
+        <span>Hello {currentUser.name}!</span>
         <button onClick={handleSignOut}>Sign Out</button>
       </h1>
       <div>
@@ -128,7 +127,7 @@ const App = () => {
         <button onClick={handleSend}>Send</button>
         <ul>
           {messages.map(({ id, avatar, name, text }) => {
-            avatar = `${avatar}?access_token=${user.accessToken}`;
+            avatar = `${avatar}?access_token=${currentUser.accessToken}`;
 
             return (
               <li key={id}>
@@ -138,7 +137,9 @@ const App = () => {
                 <em>{name} says:</em>
                 <p>
                   {text}
-                  <button onClick={() => handleDelete(id)}>x</button>
+                  <button onClick={() => handleDelete({ messageId: id })}>
+                    x
+                  </button>
                 </p>
               </li>
             );
@@ -147,7 +148,9 @@ const App = () => {
       </div>
     </>
   ) : (
-    <button onClick={handleFacebookSignIn}>Sign in with Facebook</button>
+    <button onClick={() => handleFacebookSignIn(provider)}>
+      Sign in with Facebook
+    </button>
   );
 };
 
