@@ -416,6 +416,75 @@ See <https://ejelome-react-chat.netlify.app>.
   +export const db = firebase.firestore();
   ```
 
+  ```diff
+  --- src/App.js
+  +++ src/App.js
+  @@ -1,40 +1,59 @@
+   import { useEffect, useState } from "react";
+
+  -import { auth, provider } from "./firebase";
+  +import { auth, db, provider } from "./firebase";
+
+   const App = () => {
+     const initialState = { currentUser: null };
+     const [data, setData] = useState(initialState);
+
+     useEffect(() => {
+  -    const unsubscribe = auth.onAuthStateChanged((user) =>
+  -      setData((prevData) => ({ ...prevData, currentUser: user }))
+  +    const unsubscribe = auth.onAuthStateChanged(
+  +      (user) =>
+  +        user &&
+  +        db
+  +          .collection("users")
+  +          .doc(user.uid)
+  +          .get()
+  +          .then((doc) =>
+  +            setData((prevData) => ({ ...prevData, user: doc.data() }))
+  +          )
+  +          .catch((error) => console.log(error))
+       );
+
+       return unsubscribe;
+     });
+
+     const handleFacebookSignIn = ({ facebook }) =>
+       auth
+         .signInWithPopup(facebook)
+         .then(({ user, credential }) => {
+           const { uid, email, displayName: name, photoURL: avatar } = user;
+           const { accessToken } = credential;
+           const newUser = { uid, email, name, avatar, accessToken };
+
+  -        setData((prevData) => ({ ...prevData, currentUser: newUser }));
+  +        db.collection("users")
+  +          .doc(uid)
+  +          .get()
+  +          .then(({ exists }) => {
+  +            exists
+  +              ? db.collection("users").doc(uid).update({ accessToken })
+  +              : db.collection("users").doc(uid).set(newUser);
+  +
+  +            setData((prevData) => ({ ...prevData, currentUser: newUser }));
+  +          })
+  +          .catch((error) => console.log(error));
+         })
+         .catch((error) => console.error(error));
+
+     const { currentUser } = data;
+
+     return currentUser ? (
+       <h1>Hello {currentUser.name}!</h1>
+     ) : (
+       <button onClick={() => handleFacebookSignIn(provider)}>
+         Sign in with Facebook
+       </button>
+     );
+   };
+
+   export default App;
+  ```
+
   > **NOTES**
   >
   > - `collection` gets a `CollectionReference` object
