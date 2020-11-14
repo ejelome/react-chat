@@ -506,37 +506,33 @@ See <https://ejelome-react-chat.netlify.app>.
   ```diff
   --- src/App.js
   +++ src/App.js
-  @@ -1,64 +1,70 @@
+  @@ -1,59 +1,68 @@
    import { useEffect, useState } from "react";
 
    import { auth, db, provider } from "./firebase";
 
    const App = () => {
-     const initialState = { user: null };
+     const initialState = { currentUser: null };
      const [data, setData] = useState(initialState);
-     const { user } = data;
 
      useEffect(() => {
-       const unsubscribe = auth.onAuthStateChanged((user) => {
-         if (user) {
-           const { uid } = user;
-
-           db.collection("users")
-             .doc(uid)
+       const unsubscribe = auth.onAuthStateChanged(
+         (user) =>
+           user &&
+           db
+             .collection("users")
+             .doc(user.uid)
              .get()
              .then((doc) =>
                setData((prevData) => ({ ...prevData, user: doc.data() }))
              )
-             .catch((error) => console.log(error));
-         }
-       });
+             .catch((error) => console.log(error))
+       );
 
        return unsubscribe;
-     }, []);
+     });
 
-     const handleFacebookSignIn = () => {
-       const { facebook } = provider;
-
+     const handleFacebookSignIn = ({ facebook }) =>
        auth
          .signInWithPopup(facebook)
          .then(({ user, credential }) => {
@@ -548,31 +544,34 @@ See <https://ejelome-react-chat.netlify.app>.
              .doc(uid)
              .get()
              .then(({ exists }) => {
-               if (!exists) {
-                 db.collection("users").doc(uid).set(newUser);
-               } else {
-                 db.collection("users").doc(uid).update({ accessToken });
-               }
+               exists
+                 ? db.collection("users").doc(uid).update({ accessToken })
+                 : db.collection("users").doc(uid).set(newUser);
 
-               setData((prevData) => ({ ...prevData, user: newUser }));
+               setData((prevData) => ({ ...prevData, currentUser: newUser }));
              })
              .catch((error) => console.log(error));
          })
          .catch((error) => console.error(error));
-     };
 
-  +  const handleSignOut = () => {
-  +    auth.signOut().catch((error) => console.error(error));
-  +    setData(initialState);
-  +  };
+  +  const handleSignOut = () =>
+  +    auth
+  +      .signOut()
+  +      .then(() => setData(initialState))
+  +      .catch((error) => console.error(error));
   +
-     return user && Object.keys(user).length ? (
-       <h1>
-         <span>Hello {user.name}!</span>
+     const { currentUser } = data;
+
+     return currentUser ? (
+  -    <h1>Hello {currentUser.name}!</h1>
+  +    <h1>
+  +      <span>Hello {currentUser.name}!</span>
   +      <button onClick={handleSignOut}>Sign Out</button>
-       </h1>
+  +    </h1>
      ) : (
-       <button onClick={handleFacebookSignIn}>Sign in with Facebook</button>
+       <button onClick={() => handleFacebookSignIn(provider)}>
+         Sign in with Facebook
+       </button>
      );
    };
 
