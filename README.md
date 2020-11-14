@@ -357,7 +357,7 @@ See <https://ejelome-react-chat.netlify.app>.
   +    );
   +
   +    return unsubscribe;
-  +  });
+  +  }, []);
   +
      const handleFacebookSignIn = ({ facebook }) =>
        auth
@@ -440,13 +440,13 @@ See <https://ejelome-react-chat.netlify.app>.
   +          .doc(user.uid)
   +          .get()
   +          .then((doc) =>
-  +            setData((prevData) => ({ ...prevData, user: doc.data() }))
+  +            setData((prevData) => ({ ...prevData, currentUser: doc.data() }))
   +          )
   +          .catch((error) => console.log(error))
        );
 
        return unsubscribe;
-     });
+     }, []);
 
      const handleFacebookSignIn = ({ facebook }) =>
        auth
@@ -524,13 +524,13 @@ See <https://ejelome-react-chat.netlify.app>.
              .doc(user.uid)
              .get()
              .then((doc) =>
-               setData((prevData) => ({ ...prevData, user: doc.data() }))
+               setData((prevData) => ({ ...prevData, currentUser: doc.data() }))
              )
              .catch((error) => console.log(error))
        );
 
        return unsubscribe;
-     });
+     }, []);
 
      const handleFacebookSignIn = ({ facebook }) =>
        auth
@@ -619,45 +619,18 @@ See <https://ejelome-react-chat.netlify.app>.
 > `add`, `get`, `set`, `update` and `delete`.
 
 <details>
-  <summary>5.1. Write (<code>add</code>, <code>set</code> or <code>update</code>)</summary>
+  <summary>5.1. Write (<code>add</code>, <code>set</code>, <code>update</code> or <code>delete</code>)</summary>
 
 - 5.1.1. Export `firebase`
 
   ```diff
-  --- src/firebase.js
-  +++ src/firebase.js
-  @@ -1,24 +1,24 @@
-   import "firebase/auth";
-   import "firebase/firestore";
 
-   import firebase from "firebase/app";
-
-   firebase.initializeApp({
-     apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-     authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-     databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL,
-     projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-     storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-     messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-     appId: process.env.REACT_APP_FIREBASE_APP_ID,
-   });
-
-   const auth = firebase.auth();
-
-   const provider = {
-     facebook: new firebase.auth.FacebookAuthProvider(),
-   };
-
-   const db = firebase.firestore();
-
-  -export { auth, db, provider };
-  +export { auth, db, firebase, provider };
   ```
 
   > **NOTE** <br />
   > Export `firebase` to later generate timestamps from `FieldValue.serverTimestamp`.
 
-- 5.1.2. Use `add` with a timestamp
+- 5.1.1. Use `add` with a timestamp
 
   ```diff
   --- src/App.js
@@ -1006,7 +979,7 @@ See <https://ejelome-react-chat.netlify.app>.
            setData((prevData) => ({ ...prevData, messages }));
          })
          .catch((error) => console.log(error));
-     }, []);
+     });
 
      const handleFacebookSignIn = () => {
        const { facebook } = provider;
