@@ -237,7 +237,7 @@ See <https://ejelome-react-chat.netlify.app>.
   ```diff
   --- src/firebase.js
   +++ src/firebase.js
-  @@ -1,11 +1,21 @@
+  @@ -1,11 +1,16 @@
   +import "firebase/auth";
   +
    import firebase from "firebase/app";
@@ -252,13 +252,8 @@ See <https://ejelome-react-chat.netlify.app>.
      appId: process.env.REACT_APP_FIREBASE_APP_ID,
    });
   +
-  +const auth = firebase.auth();
-  +
-  +const provider = {
-  +  facebook: new firebase.auth.FacebookAuthProvider(),
-  +};
-  +
-  +export { auth, provider };
+  +export const auth = firebase.auth();
+  +export const provider = { facebook: new firebase.auth.FacebookAuthProvider() };
   ```
 
   > **NOTES**
