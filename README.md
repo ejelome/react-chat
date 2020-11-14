@@ -619,61 +619,45 @@ See <https://ejelome-react-chat.netlify.app>.
 > `add`, `get`, `set`, `update` and `delete`.
 
 <details>
-  <summary>5.1. Write (<code>add</code>, <code>set</code>, <code>update</code> or <code>delete</code>)</summary>
+  <summary>5.1. Write (<code>add</code>, <code>set</code>, <code>update</code>)</summary>
 
-- 5.1.1. Export `firebase`
-
-  ```diff
-
-  ```
-
-  > **NOTE** <br />
-  > Export `firebase` to later generate timestamps from `FieldValue.serverTimestamp`.
-
-- 5.1.1. Use `add` with a timestamp
+- 5.1.1. Use `add` with `serverTimestamp`
 
   ```diff
   --- src/App.js
   +++ src/App.js
-  @@ -1,72 +1,110 @@
+  @@ -1,65 +1,126 @@
   -import { useEffect, useState } from "react";
+  +import firebase from "firebase";
   +import { useEffect, useRef, useState } from "react";
 
-  -import { auth, db, provider } from "./firebase";
-  +import { auth, db, firebase, provider } from "./firebase";
+   import { auth, db, provider } from "./firebase";
 
    const App = () => {
-  -  const initialState = { user: null };
-  +  const initialState = {
-  +    user: null,
-  +    messages: [],
-  +  };
+  -  const initialState = { currentUser: null };
+  +  const initialState = { currentUser: null, messages: [] };
      const [data, setData] = useState(initialState);
-     const { user } = data;
 
   +  const inputRef = useRef();
   +
      useEffect(() => {
-       const unsubscribe = auth.onAuthStateChanged((user) => {
-         if (user) {
-           const { uid } = user;
-
-           db.collection("users")
-             .doc(uid)
+       const unsubscribe = auth.onAuthStateChanged(
+         (user) =>
+           user &&
+           db
+             .collection("users")
+             .doc(user.uid)
              .get()
              .then((doc) =>
-               setData((prevData) => ({ ...prevData, user: doc.data() }))
+               setData((prevData) => ({ ...prevData, currentUser: doc.data() }))
              )
-             .catch((error) => console.log(error));
-         }
-       });
+             .catch((error) => console.log(error))
+       );
 
        return unsubscribe;
      }, []);
 
-     const handleFacebookSignIn = () => {
-       const { facebook } = provider;
-
+     const handleFacebookSignIn = ({ facebook }) =>
        auth
          .signInWithPopup(facebook)
          .then(({ user, credential }) => {
@@ -685,28 +669,31 @@ See <https://ejelome-react-chat.netlify.app>.
              .doc(uid)
              .get()
              .then(({ exists }) => {
-               if (!exists) {
-                 db.collection("users").doc(uid).set(newUser);
-               } else {
-                 db.collection("users").doc(uid).update({ accessToken });
-               }
+               exists
+                 ? db.collection("users").doc(uid).update({ accessToken })
+                 : db.collection("users").doc(uid).set(newUser);
 
-               setData((prevData) => ({ ...prevData, user: newUser }));
+               setData((prevData) => ({ ...prevData, currentUser: newUser }));
              })
              .catch((error) => console.log(error));
          })
          .catch((error) => console.error(error));
-     };
 
-     const handleSignOut = () => {
-       auth.signOut().catch((error) => console.error(error));
-       setData(initialState);
-     };
+     const handleSignOut = () =>
+       auth
+         .signOut()
+         .then(() => setData(initialState))
+         .catch((error) => console.error(error));
 
+  -  const { currentUser } = data;
   +  const handleSend = () => {
   +    const { value: text } = inputRef.current;
-  +    const { uid, avatar, name } = user;
-  +    const timestamp = firebase.firestore.FieldValue.serverTimestamp();
+  +    const { uid, avatar, name } = currentUser;
+  +    const {
+  +      firestore: {
+  +        FieldValue: { serverTimestamp: timestamp },
+  +      },
+  +    } = firebase;
   +    const message = { uid, avatar, name, text, timestamp };
   +
   +    const docRef = db.collection("messages").doc();
@@ -727,24 +714,45 @@ See <https://ejelome-react-chat.netlify.app>.
   +
   +  const handleSendEnter = ({ key }) => {
   +    const sendInputRefValue = inputRef.current.value.trim();
+  +    const keyCode = key.toLowerCase();
   +
-  +    sendInputRefValue && key.toLowerCase() === "enter" && handleSend();
+  +    sendInputRefValue && keyCode === "enter" && handleSend();
   +  };
   +
-     return user && Object.keys(user).length ? (
-       <>
-         <h1>
-           <span>Hello {user.name}!</span>
-           <button onClick={handleSignOut}>Sign Out</button>
-         </h1>
+  +  const { currentUser, messages } = data;
+
+     return currentUser ? (
+  -    <h1>Hello {currentUser.name}!</h1>
+  +    <>
+  +      <h1>
+  +        <span>Hello {currentUser.name}!</span>
+  +        <button onClick={handleSignOut}>Sign Out</button>
+  +      </h1>
   +      <div>
   +        <h2>Message</h2>
   +        <input ref={inputRef} onKeyDown={handleSendEnter} />
   +        <button onClick={handleSend}>Send</button>
+  +        <ul>
+  +          {messages.map(({ id, avatar, name, text }) => {
+  +            avatar = `${avatar}?access_token=${currentUser.accessToken}`;
+  +
+  +            return (
+  +              <li key={id}>
+  +                <div>
+  +                  <img src={avatar} alt="" />
+  +                </div>
+  +                <em>{name} says:</em>
+  +                <p>{text}</p>
+  +              </li>
+  +            );
+  +          })}
+  +        </ul>
   +      </div>
-       </>
+  +    </>
      ) : (
-       <button onClick={handleFacebookSignIn}>Sign in with Facebook</button>
+       <button onClick={() => handleFacebookSignIn(provider)}>
+         Sign in with Facebook
+       </button>
      );
    };
 
@@ -755,8 +763,9 @@ See <https://ejelome-react-chat.netlify.app>.
   >
   > - `FieldValue` provides sentinel values (e.g. flags, dummy data, etc.)
   > - `serverTimestamp` returns a server-generated timestamp
-  > - `serverTimestamp` is commonly used as `Document ID`s for sort/order-ing
+  > - `serverTimestamp` can be used as a field for sorting
   > - `add` adds a new document to the specified collection
+  > - `doc` returns an object with `uid` that can be used as `Document ID`
   > - `[message, ...prevData.messages]` _prepends_ the item to the array
   > - `?access_token` is required from Facebook to display the profile photo
 
@@ -770,40 +779,36 @@ See <https://ejelome-react-chat.netlify.app>.
   ```diff
   --- src/App.js
   +++ src/App.js
-  @@ -1,110 +1,139 @@
+  @@ -1,122 +1,140 @@
+   import firebase from "firebase";
    import { useEffect, useRef, useState } from "react";
 
-   import { auth, db, firebase, provider } from "./firebase";
+   import { auth, db, provider } from "./firebase";
 
    const App = () => {
-     const initialState = {
-       user: null,
-       messages: [],
-     };
+     const initialState = { currentUser: null, messages: [] };
      const [data, setData] = useState(initialState);
-  -  const { user } = data;
-  +  const { user, messages } = data;
 
      const inputRef = useRef();
 
      useEffect(() => {
-       const unsubscribe = auth.onAuthStateChanged((user) => {
-         if (user) {
-           const { uid } = user;
-
-           db.collection("users")
-             .doc(uid)
+       const unsubscribe = auth.onAuthStateChanged(
+         (user) =>
+           user &&
+           db
+             .collection("users")
+             .doc(user.uid)
              .get()
              .then((doc) =>
-               setData((prevData) => ({ ...prevData, user: doc.data() }))
+               setData((prevData) => ({ ...prevData, currentUser: doc.data() }))
              )
-             .catch((error) => console.log(error));
-         }
-       });
+             .catch((error) => console.log(error))
+       );
 
        return unsubscribe;
-     }, []);
-
+  -  });
+  +  }, []);
+  +
   +  useEffect(() => {
   +    db.collection("messages")
   +      .orderBy("timestamp", "desc")
@@ -817,10 +822,8 @@ See <https://ejelome-react-chat.netlify.app>.
   +      })
   +      .catch((error) => console.log(error));
   +  }, []);
-  +
-     const handleFacebookSignIn = () => {
-       const { facebook } = provider;
 
+     const handleFacebookSignIn = ({ facebook }) =>
        auth
          .signInWithPopup(facebook)
          .then(({ user, credential }) => {
@@ -832,28 +835,31 @@ See <https://ejelome-react-chat.netlify.app>.
              .doc(uid)
              .get()
              .then(({ exists }) => {
-               if (!exists) {
-                 db.collection("users").doc(uid).set(newUser);
-               } else {
-                 db.collection("users").doc(uid).update({ accessToken });
-               }
+               exists
+                 ? db.collection("users").doc(uid).update({ accessToken })
+                 : db.collection("users").doc(uid).set(newUser);
 
-               setData((prevData) => ({ ...prevData, user: newUser }));
+               setData((prevData) => ({ ...prevData, currentUser: newUser }));
              })
              .catch((error) => console.log(error));
          })
          .catch((error) => console.error(error));
-     };
 
-     const handleSignOut = () => {
-       auth.signOut().catch((error) => console.error(error));
-       setData(initialState);
-     };
+     const handleSignOut = () =>
+       auth
+         .signOut()
+         .then(() => setData(initialState))
+         .catch((error) => console.error(error));
 
      const handleSend = () => {
        const { value: text } = inputRef.current;
-       const { uid, avatar, name } = user;
-       const timestamp = firebase.firestore.FieldValue.serverTimestamp();
+       const { uid, avatar, name } = currentUser;
+  -    const timestamp = firebase.firestore.FieldValue.serverTimestamp();
+  +    const {
+  +      firestore: {
+  +        FieldValue: { serverTimestamp: timestamp },
+  +      },
+  +    } = firebase;
        const message = { uid, avatar, name, text, timestamp };
 
        const docRef = db.collection("messages").doc();
@@ -874,39 +880,44 @@ See <https://ejelome-react-chat.netlify.app>.
 
      const handleSendEnter = ({ key }) => {
        const sendInputRefValue = inputRef.current.value.trim();
+       const keyCode = key.toLowerCase();
 
-       sendInputRefValue && key.toLowerCase() === "enter" && handleSend();
+       sendInputRefValue && keyCode === "enter" && handleSend();
      };
 
-     return user && Object.keys(user).length ? (
+     const { currentUser, messages } = data;
+
+     return currentUser ? (
        <>
          <h1>
-           <span>Hello {user.name}!</span>
+           <span>Hello {currentUser.name}!</span>
            <button onClick={handleSignOut}>Sign Out</button>
          </h1>
          <div>
            <h2>Message</h2>
            <input ref={inputRef} onKeyDown={handleSendEnter} />
            <button onClick={handleSend}>Send</button>
-  +        <ul>
-  +          {messages.map(({ id, avatar, name, text }) => {
-  +            avatar = `${avatar}?access_token=${user.accessToken}`;
-  +
-  +            return (
-  +              <li key={id}>
-  +                <div>
-  +                  <img src={avatar} alt="" />
-  +                </div>
-  +                <em>{name} says:</em>
-  +                <p>{text}</p>
-  +              </li>
-  +            );
-  +          })}
-  +        </ul>
+           <ul>
+             {messages.map(({ id, avatar, name, text }) => {
+               avatar = `${avatar}?access_token=${currentUser.accessToken}`;
+
+               return (
+                 <li key={id}>
+                   <div>
+                     <img src={avatar} alt="" />
+                   </div>
+                   <em>{name} says:</em>
+                   <p>{text}</p>
+                 </li>
+               );
+             })}
+           </ul>
          </div>
        </>
      ) : (
-       <button onClick={handleFacebookSignIn}>Sign in with Facebook</button>
+       <button onClick={() => handleFacebookSignIn(provider)}>
+         Sign in with Facebook
+       </button>
      );
    };
 
